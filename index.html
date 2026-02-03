@@ -278,26 +278,44 @@ document.addEventListener("keydown", e => {
     searchInput.oninput = render;
 
     planForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('edit-id').value;
-        const data = {
-            title: document.getElementById('plan-title').value,
-            note: document.getElementById('plan-note').value,
-            type: document.querySelector('input[name="type"]:checked').value,
-            createdAt: id ? allItems.find(i => i.id === id).createdAt : Date.now()
-        };
-        try {
-            if(id) {
-                await update(ref(db, `items/${id}`), data);
-            } else {
-                await push(dbRef, data);
-            }
-            modal.classList.add('hidden');
-            planForm.reset();
-        } catch (err) {
-            alert("Gagal menyimpan data.");
-        }
+    e.preventDefault();
+    const id = document.getElementById('edit-id').value;
+    
+    // Ambil waktu sekarang
+    const now = new Date();
+    
+    // Format string untuk disimpan di database (Contoh: "Selasa, 3 Februari 2026 23:40:02")
+    const fullDateTime = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    const data = {
+        title: document.getElementById('plan-title').value,
+        note: document.getElementById('plan-note').value,
+        type: document.querySelector('input[name="type"]:checked').value,
+        // Kita simpan dua versi: timestamp untuk sorting, string untuk dibaca
+        createdAt: id ? allItems.find(i => i.id === id).createdAt : Date.now(),
+        displayDate: id ? allItems.find(i => i.id === id).displayDate : fullDateTime
     };
+
+    try {
+        if(id) {
+            await update(ref(db, `items/${id}`), data);
+        } else {
+            await push(dbRef, data);
+        }
+        modal.classList.add('hidden');
+        planForm.reset();
+    } catch (err) {
+        alert("Gagal menyimpan data.");
+    }
+};
 
     lucide.createIcons();
 </script>
