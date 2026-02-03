@@ -7,12 +7,24 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
+document.addEventListener("keydown", e => {
+  if (
+    e.key === "F12" ||
+    (e.ctrlKey && ["u","U","c","C","x","X","s","S","a","A"].includes(e.key)) ||
+    (e.ctrlKey && e.shiftKey && ["I","i","J","j"].includes(e.key))
+  ) e.preventDefault();
+});
+</script>
     <style>
         body {
             background-color: #050508;
             font-family: 'Inter', sans-serif;
             color: #E2E8F0;
             overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
         .serif { font-family: 'Playfair Display', serif; }
         
@@ -141,132 +153,153 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA3TLIhdspdoekbP2gjjVHu8cGNyEuk4zY",
-            authDomain: "chika-c61d6.firebaseapp.com",
-            databaseURL: "https://chika-c61d6-default-rtdb.firebaseio.com",
-            projectId: "chika-c61d6",
-            storageBucket: "chika-c61d6.firebasestorage.app",
-            messagingSenderId: "434591898726",
-            appId: "1:434591898726:web:5885443dcb6177db1ae1a7",
-            measurementId: "G-BZFFXFLE22"
+    const firebaseConfig = {
+        apiKey: "AIzaSyA3TLIhdspdoekbP2gjjVHu8cGNyEuk4zY",
+        authDomain: "chika-c61d6.firebaseapp.com",
+        databaseURL: "https://chika-c61d6-default-rtdb.firebaseio.com",
+        projectId: "chika-c61d6",
+        storageBucket: "chika-c61d6.firebasestorage.app",
+        messagingSenderId: "434591898726",
+        appId: "1:434591898726:web:5885443dcb6177db1ae1a7",
+        measurementId: "G-BZFFXFLE22"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const dbRef = ref(db, 'items');
+
+    const plansGrid = document.getElementById('plans-grid');
+    const modal = document.getElementById('modal');
+    const planForm = document.getElementById('plan-form');
+    const searchInput = document.getElementById('search-input');
+    
+    let allItems = [];
+    let activeFilter = 'all';
+
+    // FUNGSI UNTUK FORMAT WAKTU (BARU)
+    function formatDateTime(timestamp) {
+        if (!timestamp) return "";
+        const date = new Date(timestamp);
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit' 
         };
+        return date.toLocaleDateString('id-ID', options);
+    }
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const dbRef = ref(db, 'items');
+    onValue(dbRef, (snap) => {
+        const data = snap.val();
+        allItems = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
+        render();
+    });
 
-        const plansGrid = document.getElementById('plans-grid');
-        const modal = document.getElementById('modal');
-        const planForm = document.getElementById('plan-form');
-        const searchInput = document.getElementById('search-input');
-        
-        let allItems = [];
-        let activeFilter = 'all';
+    function render() {
+        const term = searchInput.value.toLowerCase();
+        const filtered = allItems.filter(i => {
+            const matchType = activeFilter === 'all' || i.type === activeFilter;
+            const matchSearch = i.title.toLowerCase().includes(term) || i.note.toLowerCase().includes(term);
+            return matchType && matchSearch;
+        }).sort((a, b) => b.createdAt - a.createdAt);
 
-        onValue(dbRef, (snap) => {
-            const data = snap.val();
-            allItems = data ? Object.keys(data).map(k => ({ id: k, ...data[k] })) : [];
-            render();
-        });
-
-        function render() {
-            const term = searchInput.value.toLowerCase();
-            const filtered = allItems.filter(i => {
-                const matchType = activeFilter === 'all' || i.type === activeFilter;
-                const matchSearch = i.title.toLowerCase().includes(term) || i.note.toLowerCase().includes(term);
-                return matchType && matchSearch;
-            }).sort((a, b) => b.createdAt - a.createdAt);
-
-            plansGrid.innerHTML = filtered.map(item => `
-                <div class="glass-card p-6 md:p-8 rounded-3xl group relative">
-                    <div class="flex justify-between items-start mb-6">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.type === 'plan' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}">
+        plansGrid.innerHTML = filtered.map(item => `
+            <div class="glass-card p-6 md:p-8 rounded-3xl group relative">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex flex-col gap-1">
+                        <span class="w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.type === 'plan' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}">
                             ${item.type}
                         </span>
-                        <div class="flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onclick="window.editEntry('${item.id}')" class="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all">
-                                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="window.deleteEntry('${item.id}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-all">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+                        <span class="text-[10px] text-gray-500 font-medium">
+                            ${formatDateTime(item.createdAt)}
+                        </span>
                     </div>
-                    <h3 class="serif text-xl md:text-2xl font-bold mb-3">${item.title}</h3>
-                    <p class="text-gray-400 text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">${item.note}</p>
+                    <div class="flex gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="window.editEntry('${item.id}')" class="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-all">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="window.deleteEntry('${item.id}')" class="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-all">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        window.deleteEntry = (id) => {
-            if(confirm('Hapus jejak rencana ini?')) {
-                remove(ref(db, `items/${id}`));
-            }
-        };
-
-        window.editEntry = (id) => {
-            const item = allItems.find(i => i.id === id);
-            if(!item) return;
-            document.getElementById('edit-id').value = item.id;
-            document.getElementById('plan-title').value = item.title;
-            document.getElementById('plan-note').value = item.note;
-            document.querySelector(`input[name="type"][value="${item.type}"]`).checked = true;
-            document.getElementById('modal-title').innerText = "Edit Commitment";
-            modal.classList.remove('hidden');
-        };
-
-        const openModal = () => {
-            planForm.reset();
-            document.getElementById('edit-id').value = '';
-            document.getElementById('modal-title').innerText = "Create Entry";
-            modal.classList.remove('hidden');
-        };
-
-        document.getElementById('add-btn-nav').onclick = openModal;
-        document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
-        document.getElementById('modal-overlay').onclick = () => modal.classList.add('hidden');
-
-        document.querySelectorAll('.filter-btn, .nav-link').forEach(btn => {
-            btn.addEventListener('click', () => {
-                activeFilter = btn.dataset.filter || btn.dataset.nav;
-                document.querySelectorAll('.filter-btn').forEach(b => {
-                    b.classList.remove('bg-white/10', 'text-white');
-                    if(b.dataset.filter === activeFilter) b.classList.add('bg-white/10', 'text-white');
-                });
-                render();
-            });
-        });
-
-        searchInput.oninput = render;
-
-        planForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('edit-id').value;
-            const data = {
-                title: document.getElementById('plan-title').value,
-                note: document.getElementById('plan-note').value,
-                type: document.querySelector('input[name="type"]:checked').value,
-                createdAt: id ? allItems.find(i => i.id === id).createdAt : Date.now()
-            };
-            try {
-                if(id) {
-                    await update(ref(db, `items/${id}`), data);
-                } else {
-                    await push(dbRef, data);
-                }
-                modal.classList.add('hidden');
-                planForm.reset();
-            } catch (err) {
-                alert("Gagal menyimpan data.");
-            }
-        };
-
+                <h3 class="serif text-xl md:text-2xl font-bold mb-3">${item.title}</h3>
+                <p class="text-gray-400 text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">${item.note}</p>
+            </div>
+        `).join('');
         lucide.createIcons();
-    </script>
+    }
+
+    window.deleteEntry = (id) => {
+        if(confirm('Hapus jejak rencana ini?')) {
+            remove(ref(db, `items/${id}`));
+        }
+    };
+
+    window.editEntry = (id) => {
+        const item = allItems.find(i => i.id === id);
+        if(!item) return;
+        document.getElementById('edit-id').value = item.id;
+        document.getElementById('plan-title').value = item.title;
+        document.getElementById('plan-note').value = item.note;
+        document.querySelector(`input[name="type"][value="${item.type}"]`).checked = true;
+        document.getElementById('modal-title').innerText = "Edit Commitment";
+        modal.classList.remove('hidden');
+    };
+
+    const openModal = () => {
+        planForm.reset();
+        document.getElementById('edit-id').value = '';
+        document.getElementById('modal-title').innerText = "Create Entry";
+        modal.classList.remove('hidden');
+    };
+
+    document.getElementById('add-btn-nav').onclick = openModal;
+    document.getElementById('close-modal').onclick = () => modal.classList.add('hidden');
+    document.getElementById('modal-overlay').onclick = () => modal.classList.add('hidden');
+
+    document.querySelectorAll('.filter-btn, .nav-link').forEach(btn => {
+        btn.addEventListener('click', () => {
+            activeFilter = btn.dataset.filter || btn.dataset.nav;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('bg-white/10', 'text-white');
+                if(b.dataset.filter === activeFilter) b.classList.add('bg-white/10', 'text-white');
+            });
+            render();
+        });
+    });
+
+    searchInput.oninput = render;
+
+    planForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('edit-id').value;
+        const data = {
+            title: document.getElementById('plan-title').value,
+            note: document.getElementById('plan-note').value,
+            type: document.querySelector('input[name="type"]:checked').value,
+            createdAt: id ? allItems.find(i => i.id === id).createdAt : Date.now()
+        };
+        try {
+            if(id) {
+                await update(ref(db, `items/${id}`), data);
+            } else {
+                await push(dbRef, data);
+            }
+            modal.classList.add('hidden');
+            planForm.reset();
+        } catch (err) {
+            alert("Gagal menyimpan data.");
+        }
+    };
+
+    lucide.createIcons();
+</script>
 </body>
 </html>
